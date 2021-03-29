@@ -6,18 +6,23 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
+import com.google.gson.internal.$Gson$Preconditions;
 import com.rxjava2.android.samples.R;
 import com.rxjava2.android.samples.utils.AppConstant;
 
 import java.util.concurrent.TimeUnit;
 
 import androidx.appcompat.app.AppCompatActivity;
+
 import io.reactivex.Observable;
 import io.reactivex.ObservableEmitter;
 import io.reactivex.ObservableOnSubscribe;
 import io.reactivex.Observer;
+import io.reactivex.android.MainThreadDisposable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.annotations.NonNull;
 import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
 
 /**
@@ -28,13 +33,19 @@ public class DebounceExampleActivity extends AppCompatActivity {
 
     private static final String TAG = DebounceExampleActivity.class.getSimpleName();
     Button btn;
+    Button sendBtn;
     TextView textView;
+
+    ListChangeObservable listChangeObservable;
+
+    int count;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_example);
         btn = findViewById(R.id.btn);
+        sendBtn = findViewById(R.id.sendBtn);
         textView = findViewById(R.id.textView);
 
         btn.setOnClickListener(new View.OnClickListener() {
@@ -43,15 +54,42 @@ public class DebounceExampleActivity extends AppCompatActivity {
                 doSomeWork();
             }
         });
+
+
+        sendBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                count++;
+                if (listChangeObservable.listener.observer != null) {
+                    listChangeObservable.listener.observer.onNext(count);
+                }
+
+            }
+        });
+
+        listChangeObservable = new ListChangeObservable();
+        listChangeObservable.map(new Function<Integer, Integer>() {
+            @Override
+            public Integer apply(@NonNull Integer integer) throws Exception {
+                Log.i(TAG, "map " + integer);
+                return integer;
+            }
+        }).debounce(1000, TimeUnit.MILLISECONDS).subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread()).subscribe(getObserver());
     }
 
+
     /*
-    * Using debounce() -> only emit an item from an Observable if a particular time-span has
-    * passed without it emitting another item, so it will emit 2, 4, 5 as we have simulated it.
-    */
+     * Using debounce() -> only emit an item from an Observable if a particular time-span has
+     * passed without it emitting another item, so it will emit 2, 4, 5 as we have simulated it.
+     */
     private void doSomeWork() {
-        getObservable()
-                .debounce(500, TimeUnit.MILLISECONDS)
+        getObservable().map(new Function<Integer, Integer>() {
+            @Override
+            public Integer apply(@NonNull Integer integer) throws Exception {
+                Log.i(TAG, "map " + integer);
+                return integer;
+            }
+        }).debounce(500, TimeUnit.MILLISECONDS)
                 // Run on a background thread
                 .subscribeOn(Schedulers.io())
                 // Be notified on the main thread
@@ -64,15 +102,15 @@ public class DebounceExampleActivity extends AppCompatActivity {
             @Override
             public void subscribe(ObservableEmitter<Integer> emitter) throws Exception {
                 // send events with simulated time wait
-                emitter.onNext(1); // skip
+                emitter.onNext(1); // skip   0
                 Thread.sleep(400);
-                emitter.onNext(2); // deliver
+                emitter.onNext(2); // deliver 400
                 Thread.sleep(505);
-                emitter.onNext(3); // skip
+                emitter.onNext(3); // skip    905
                 Thread.sleep(100);
-                emitter.onNext(4); // deliver
+                emitter.onNext(4); // deliver  1005
                 Thread.sleep(605);
-                emitter.onNext(5); // deliver
+                emitter.onNext(5); // deliver   1605
                 Thread.sleep(510);
                 emitter.onComplete();
             }
@@ -111,6 +149,44 @@ public class DebounceExampleActivity extends AppCompatActivity {
                 Log.d(TAG, " onComplete");
             }
         };
+    }
+
+
+    class ListChangeObservable extends Observable<Integer> {
+
+//        public Observer<? super Integer> observer;
+
+        Listener listener;
+
+        @Override
+        protected void subscribeActual(Observer<? super Integer> observer) {
+            listener = new Listener();
+            listener.observer = observer;
+            observer.onSubscribe(listener);
+//            this.observer = observer;
+        }
+
+
+        //        override fun subscribeActual(observer: Observer<in Int>) {
+        //            val listener = Listener(changeMutableList, observer)
+        //            observer.onSubscribe(listener)
+        //            changeMutableList.setSizeChangeListener(listener)
+        //        }
+        //
+        class Listener extends MainThreadDisposable {
+
+            public Observer<? super Integer> observer;
+
+
+            //                    override fun onDispose() {
+            //                        changeMutableList.removeChangeListener()
+            //                    }
+
+            @Override
+            protected void onDispose() {
+
+            }
+        }
     }
 
 }

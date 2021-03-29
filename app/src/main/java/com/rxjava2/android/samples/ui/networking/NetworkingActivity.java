@@ -22,6 +22,7 @@ import io.reactivex.Observer;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.BiFunction;
+import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
 import io.reactivex.functions.Predicate;
 import io.reactivex.schedulers.Schedulers;
@@ -44,10 +45,18 @@ public class NetworkingActivity extends AppCompatActivity {
      * Map Operator Example
      */
     public void map(View view) {
+        Log.d(TAG, "user : map ");
         Rx2AndroidNetworking.get("https://fierce-cove-29863.herokuapp.com/getAnUser/{userId}")
                 .addPathParameter("userId", "1")
                 .build()
                 .getObjectObservable(ApiUser.class)
+                .doOnNext(new Consumer(){
+
+                    @Override
+                    public void accept(Object o) throws Exception {
+                        Log.d(TAG, "user : doOnNext ");
+                    }
+                })
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .map(new Function<ApiUser, User>() {
