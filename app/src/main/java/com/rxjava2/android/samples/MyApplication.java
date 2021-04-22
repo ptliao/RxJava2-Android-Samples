@@ -12,6 +12,10 @@ import io.reactivex.functions.Consumer;
 
 /**
  * Created by threshold on 2017/1/12.
+ *
+ *
+ *
+ * 测试12
  */
 
 public class MyApplication extends Application {
